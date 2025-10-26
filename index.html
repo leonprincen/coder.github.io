@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,7 +13,6 @@
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
@@ -82,7 +81,6 @@
             font-size: 1rem;
             transition: all 0.2s;
             color: #6b7280;
-            touch-action: manipulation;
         }
         .tab:active {
             transform: scale(0.98);
@@ -113,12 +111,10 @@
             padding: 1rem;
             border: 2px solid #e5e7eb;
             border-radius: 12px;
-            font-size: 1.1rem;
+            font-size: 16px;
             transition: border-color 0.2s;
             font-family: inherit;
             background: white;
-            -webkit-appearance: none;
-            appearance: none;
         }
         input:focus, textarea:focus {
             outline: none;
@@ -144,7 +140,6 @@
             font-size: 1.1rem;
             cursor: pointer;
             transition: transform 0.2s, box-shadow 0.2s;
-            touch-action: manipulation;
         }
         button.primary:active {
             transform: scale(0.98);
@@ -184,7 +179,6 @@
             font-weight: 600;
             font-size: 1.05rem;
             transition: all 0.2s;
-            touch-action: manipulation;
         }
         .copy-btn:active {
             transform: scale(0.98);
@@ -241,54 +235,64 @@
             </div>
 
             <div class="tab-content active" id="encode">
+                <div class="info">
+                    💡 Your message will be hidden using invisible Unicode characters inside any emoji you choose!
+                </div>
                 <form id="encodeForm">
                     <div class="form-group">
                         <label for="emoji">Choose a symbol:</label>
-                        <input type="text" id="emoji" placeholder="" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                        <input type="text" id="emoji" placeholder="😅" inputmode="text">
                     </div>
                     <div class="form-group">
                         <label for="message">Secret message:</label>
-                        <textarea id="message" placeholder="Your secret message here..." autocomplete="off" autocorrect="on" spellcheck="true"></textarea>
+                        <textarea id="message" placeholder="Your secret message here..." inputmode="text"></textarea>
                     </div>
                     <button type="submit" class="primary">Encode Message</button>
                 </form>
                 <div id="encodeResult" class="result" style="display: none;">
                     <div class="result-text" id="encodedText"></div>
-                    <button class="copy-btn" onclick="copyEncoded()">Copy to Clipboard</button>
+                    <button type="button" class="copy-btn" id="copyEncodedBtn">Copy to Clipboard</button>
                     <div id="copySuccess" class="success-message" style="display: none;">✓ Copied!</div>
                 </div>
             </div>
 
             <div class="tab-content" id="decode">
+                <div class="info">
+                    🔍 Paste an emoji with a hidden message to reveal the secret text!
+                </div>
                 <form id="decodeForm">
                     <div class="form-group">
                         <label for="encodedEmoji">Paste encoded symbol:</label>
-                        <input type="text" id="encodedEmoji" placeholder="Paste here..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+                        <input type="text" id="encodedEmoji" placeholder="Paste here..." inputmode="text">
                     </div>
                     <button type="submit" class="primary">Decode Message</button>
                 </form>
                 <div id="decodeResult" class="result" style="display: none;">
                     <label style="margin-bottom: 0.75rem;">Hidden message:</label>
                     <div class="result-text decoded" id="decodedText"></div>
-                    <button class="copy-btn" onclick="copyDecoded()" style="margin-top: 1rem;">Copy Message</button>
+                    <button type="button" class="copy-btn" id="copyDecodedBtn">Copy Message</button>
                     <div id="copySuccessDecode" class="success-message" style="display: none;">✓ Copied!</div>
                 </div>
                 <div id="decodeError" class="error" style="display: none;"></div>
             </div>
         </div>
+        <div class="footer">
+            <a href="https://github.com/paulgb/emoji-encoder" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+        </div>
     </div>
 
     <script>
-        // Prevent zoom on input focus for iOS
-        document.addEventListener('touchstart', function() {}, {passive: true});
-
         // Tab switching
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('.tab').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                document.querySelectorAll('.tab').forEach(function(t) {
+                    t.classList.remove('active');
+                });
+                document.querySelectorAll('.tab-content').forEach(function(c) {
+                    c.classList.remove('active');
+                });
                 tab.classList.add('active');
-                document.getElementById(tab.dataset.tab).classList.add('active');
+                document.getElementById(tab.getAttribute('data-tab')).classList.add('active');
                 
                 // Hide results when switching tabs
                 document.getElementById('encodeResult').style.display = 'none';
@@ -298,52 +302,52 @@
         });
 
         // Zero-width characters for encoding
-        const ZERO_WIDTH_SPACE = '\u200B';
-        const ZERO_WIDTH_NON_JOINER = '\u200C';
-        const ZERO_WIDTH_JOINER = '\u200D';
+        var ZERO_WIDTH_SPACE = '\u200B';
+        var ZERO_WIDTH_NON_JOINER = '\u200C';
+        var ZERO_WIDTH_JOINER = '\u200D';
 
         function encodeMessage(emoji, message) {
-            // Convert message to binary
-            const binary = Array.from(message).map(char => {
-                return char.codePointAt(0).toString(2).padStart(21, '0');
+            var chars = Array.from(message);
+            var binary = chars.map(function(char) {
+                var codePoint = char.codePointAt(0);
+                var binaryStr = codePoint.toString(2);
+                while (binaryStr.length < 21) {
+                    binaryStr = '0' + binaryStr;
+                }
+                return binaryStr;
             }).join('');
 
-            // Convert binary to zero-width characters
-            const encoded = binary.split('').map(bit => {
+            var encoded = binary.split('').map(function(bit) {
                 if (bit === '0') return ZERO_WIDTH_NON_JOINER;
                 return ZERO_WIDTH_JOINER;
             }).join('');
 
-            // Add separator
             return emoji + ZERO_WIDTH_SPACE + encoded + ZERO_WIDTH_SPACE;
         }
 
         function decodeMessage(encodedEmoji) {
-            // Extract zero-width characters
-            const parts = encodedEmoji.split(ZERO_WIDTH_SPACE);
+            var parts = encodedEmoji.split(ZERO_WIDTH_SPACE);
             if (parts.length < 2) {
-                throw new Error('No hidden message found in this emoji');
+                throw new Error('No hidden message found in this symbol');
             }
 
-            const encoded = parts[1];
+            var encoded = parts[1];
             
             if (!encoded || encoded.length === 0) {
-                throw new Error('No hidden message found in this emoji');
+                throw new Error('No hidden message found in this symbol');
             }
             
-            // Convert zero-width characters back to binary
-            const binary = encoded.split('').map(char => {
+            var binary = encoded.split('').map(function(char) {
                 if (char === ZERO_WIDTH_NON_JOINER) return '0';
                 if (char === ZERO_WIDTH_JOINER) return '1';
                 return '';
             }).join('');
 
-            // Convert binary to text
-            const message = [];
-            for (let i = 0; i < binary.length; i += 21) {
-                const chunk = binary.substr(i, 21);
+            var message = [];
+            for (var i = 0; i < binary.length; i += 21) {
+                var chunk = binary.substring(i, i + 21);
                 if (chunk.length === 21) {
-                    const codePoint = parseInt(chunk, 2);
+                    var codePoint = parseInt(chunk, 2);
                     if (codePoint > 0) {
                         message.push(String.fromCodePoint(codePoint));
                     }
@@ -354,13 +358,13 @@
         }
 
         // Encode form
-        document.getElementById('encodeForm').addEventListener('submit', (e) => {
+        document.getElementById('encodeForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const emoji = document.getElementById('emoji').value.trim();
-            const message = document.getElementById('message').value;
+            var emoji = document.getElementById('emoji').value.trim();
+            var message = document.getElementById('message').value;
 
             if (!emoji) {
-                alert('Please enter an emoji');
+                alert('Please enter a symbol');
                 return;
             }
             
@@ -369,40 +373,42 @@
                 return;
             }
 
-            const encoded = encodeMessage(emoji, message);
-            document.getElementById('encodedText').textContent = encoded;
-            document.getElementById('encodeResult').style.display = 'block';
-            document.getElementById('copySuccess').style.display = 'none';
-            
-            // Scroll to result
-            setTimeout(() => {
-                document.getElementById('encodeResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-            }, 100);
+            try {
+                var encoded = encodeMessage(emoji, message);
+                document.getElementById('encodedText').textContent = encoded;
+                document.getElementById('encodeResult').style.display = 'block';
+                document.getElementById('copySuccess').style.display = 'none';
+                
+                setTimeout(function() {
+                    document.getElementById('encodeResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }, 100);
+            } catch (error) {
+                alert('Error encoding message: ' + error.message);
+            }
         });
 
         // Decode form
-        document.getElementById('decodeForm').addEventListener('submit', (e) => {
+        document.getElementById('decodeForm').addEventListener('submit', function(e) {
             e.preventDefault();
-            const encodedEmoji = document.getElementById('encodedEmoji').value;
+            var encodedEmoji = document.getElementById('encodedEmoji').value;
             
             document.getElementById('decodeError').style.display = 'none';
             document.getElementById('decodeResult').style.display = 'none';
             document.getElementById('copySuccessDecode').style.display = 'none';
 
             if (!encodedEmoji) {
-                document.getElementById('decodeError').textContent = 'Please paste an encoded emoji';
+                document.getElementById('decodeError').textContent = 'Please paste an encoded symbol';
                 document.getElementById('decodeError').style.display = 'block';
                 return;
             }
 
             try {
-                const decoded = decodeMessage(encodedEmoji);
+                var decoded = decodeMessage(encodedEmoji);
                 if (decoded) {
                     document.getElementById('decodedText').textContent = decoded;
                     document.getElementById('decodeResult').style.display = 'block';
                     
-                    // Scroll to result
-                    setTimeout(() => {
+                    setTimeout(function() {
                         document.getElementById('decodeResult').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
                     }, 100);
                 } else {
@@ -414,23 +420,22 @@
             }
         });
 
-        function copyEncoded() {
-            const text = document.getElementById('encodedText').textContent;
+        // Copy functions
+        document.getElementById('copyEncodedBtn').addEventListener('click', function() {
+            var text = document.getElementById('encodedText').textContent;
             copyToClipboard(text, 'copySuccess');
-        }
+        });
 
-        function copyDecoded() {
-            const text = document.getElementById('decodedText').textContent;
+        document.getElementById('copyDecodedBtn').addEventListener('click', function() {
+            var text = document.getElementById('decodedText').textContent;
             copyToClipboard(text, 'copySuccessDecode');
-        }
+        });
 
         function copyToClipboard(text, successElementId) {
-            // Try modern clipboard API first
             if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(text).then(() => {
+                navigator.clipboard.writeText(text).then(function() {
                     showCopySuccess(successElementId);
-                }).catch(() => {
-                    // Fallback for older browsers
+                }).catch(function() {
                     fallbackCopy(text, successElementId);
                 });
             } else {
@@ -439,7 +444,7 @@
         }
 
         function fallbackCopy(text, successElementId) {
-            const textArea = document.createElement('textarea');
+            var textArea = document.createElement('textarea');
             textArea.value = text;
             textArea.style.position = 'fixed';
             textArea.style.left = '-999999px';
@@ -449,8 +454,12 @@
             textArea.select();
             
             try {
-                document.execCommand('copy');
-                showCopySuccess(successElementId);
+                var successful = document.execCommand('copy');
+                if (successful) {
+                    showCopySuccess(successElementId);
+                } else {
+                    alert('Failed to copy. Please copy manually.');
+                }
             } catch (err) {
                 alert('Failed to copy. Please copy manually.');
             }
@@ -459,24 +468,12 @@
         }
 
         function showCopySuccess(elementId) {
-            const element = document.getElementById(elementId);
+            var element = document.getElementById(elementId);
             element.style.display = 'block';
-            setTimeout(() => {
+            setTimeout(function() {
                 element.style.display = 'none';
             }, 2000);
         }
-
-        // Clear forms when switching tabs
-        document.querySelectorAll('.tab').forEach(tab => {
-            tab.addEventListener('click', () => {
-                if (tab.dataset.tab === 'encode') {
-                    document.getElementById('emoji').value = '';
-                    document.getElementById('message').value = '';
-                } else {
-                    document.getElementById('encodedEmoji').value = '';
-                }
-            });
-        });
     </script>
 </body>
 </html>
